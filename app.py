@@ -173,6 +173,12 @@ with tab2:
                     st.warning(f"Nessuna colonna 'Compound Name' in {sheet_name}. Foglio saltato.")
                     continue
                 
+                # --- NUOVO FILTRO: Scarta i composti con New Area % == 0 ---
+                if 'New Area %' in df.columns:
+                    # Forza i valori a numerici (per evitare errori) e tieni solo quelli > 0
+                    df['New Area %'] = pd.to_numeric(df['New Area %'], errors='coerce').fillna(0)
+                    df = df[df['New Area %'] > 0].reset_index(drop=True)
+                
                 # Liste per i nuovi dati
                 formule, c_list, o_list, n_list, oc_list = [], [], [], [], []
                 smiles_list, pesi_list, famiglie_list = [], [], []
@@ -213,12 +219,31 @@ with tab2:
                 df['Atomi_N'] = n_list
                 df['Rapporto O/C'] = oc_list
                 
+                # Sostituiamo Component Area con New Area % (eliminiamo la colonna vecchia)
+                if 'Component Area' in df.columns:
+                    df = df.drop(columns=['Component Area'])
+                
                 dati_elaborati[sheet_name] = df
             
-            # Salva i dati in session state per la Tab 3
+            # Salva i dati in session state per la Tab 3 e per il download
             st.session_state.enriched_data = dati_elaborati
-            status_text.text("Elaborazione completata! Passa alla Tab 3 per la Dashboard.")
+            status_text.text("Elaborazione completata! Puoi scaricare i risultati qui sotto o passare alla Tab 3.")
             st.success("Dati arricchiti con successo!")
+
+    # Mostra il bottone di download SE abbiamo dati arricchiti in sessione
+    # (Messo fuori dal bottone "Avvia" così non scompare ricaricando la pagina)
+    if st.session_state.enriched_data is not None:
+        output_buffer_enriched = io.BytesIO()
+        with pd.ExcelWriter(output_buffer_enriched, engine='xlsxwriter') as writer:
+            for sheet, df_out in st.session_state.enriched_data.items():
+                df_out.to_excel(writer, sheet_name=sheet, index=False)
+        
+        st.download_button(
+            label="⬇️ Scarica Risultati_GCMS_Arricchiti.xlsx",
+            data=output_buffer_enriched.getvalue(),
+            file_name="Risultati_GCMS_Arricchiti.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 # ==========================================
 # TAB 3: INTERACTIVE DASHBOARD
@@ -233,8 +258,9 @@ with tab3:
         sheet_selezionato = st.selectbox("Seleziona il Campione (Foglio)", list(st.session_state.enriched_data.keys()))
         df_display = st.session_state.enriched_data[sheet_selezionato]
         
-        # Puliamo il DF per la visualizzazione (nascondiamo lo SMILES per ordine)
-        cols_to_show = ['Component RT', 'Compound Name', 'Match Factor', 'Component Area', 'Formula Bruta', 'Peso Molecolare', 'Famiglia Assegnata', 'Rapporto O/C']
+        # Puliamo il DF per la visualizzazione 
+        # (Nascondiamo SMILES e Atomi_C non inserendoli in questa lista)
+        cols_to_show = ['Component RT', 'Compound Name', 'Match Factor', 'New Area %', 'Formula Bruta', 'Peso Molecolare', 'Famiglia Assegnata', 'Rapporto O/C']
         df_visual = df_display[[c for c in cols_to_show if c in df_display.columns]]
         
         col1, col2 = st.columns([2, 1])
