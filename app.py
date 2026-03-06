@@ -4,8 +4,15 @@ import io
 import re
 import time
 import pubchempy as pcp
-from rdkit import Chem
-from rdkit.Chem import Draw
+
+# Gestione robusta dell'import di RDKit
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Draw
+    RDKIT_AVAILABLE = True
+except ImportError as e:
+    RDKIT_AVAILABLE = False
+    
 import xlsxwriter
 
 # --- CONFIGURAZIONE PAGINA ---
@@ -257,16 +264,20 @@ with tab3:
                 
                 smiles = dati_riga.get('SMILES', None)
                 if smiles and pd.notna(smiles):
-                    try:
-                        # RDKit per disegnare la molecola
-                        mol = Chem.MolFromSmiles(smiles)
-                        if mol:
-                            img = Draw.MolToImage(mol, size=(300, 300))
-                            st.image(img, caption="Struttura 2D")
-                        else:
-                            st.warning("Impossibile generare l'immagine da questo SMILES.")
-                    except:
-                        st.error("Errore nella generazione RDKit.")
+                    if RDKIT_AVAILABLE:
+                        try:
+                            # RDKit per disegnare la molecola
+                            mol = Chem.MolFromSmiles(smiles)
+                            if mol:
+                                img = Draw.MolToImage(mol, size=(300, 300))
+                                st.image(img, caption="Struttura 2D")
+                            else:
+                                st.warning("Impossibile generare l'immagine da questo SMILES.")
+                        except:
+                            st.error("Errore nella generazione RDKit.")
+                    else:
+                        st.error("⚠️ **Visualizzazione molecolare disabilitata.**")
+                        st.info("Su Streamlit Cloud mancano alcune librerie di sistema necessarie a RDKit.\n\n**Per risolvere il problema:**\n1. Crea un file chiamato `packages.txt` nella tua repository GitHub.\n2. Inserisci al suo interno queste librerie:\n\n`libxrender1`\n`libsm6`\n`libxext6`\n\n3. Riavvia l'app da Streamlit Cloud.")
                 else:
                     st.info("Nessuna struttura SMILES disponibile per questo composto.")
             else:
