@@ -303,7 +303,7 @@ with tab3:
                             st.error("Errore nella generazione RDKit.")
                     else:
                         st.error("⚠️ **Visualizzazione molecolare disabilitata.**")
-                        st.info("Su Streamlit Cloud mancano alcune librerie di sistema necessarie a RDKit.\n\n**Per risolvere il problema:**\n1. Crea un file chiamato `packages.txt` nella tua repository GitHub.\n2. Inserisci al suo interno queste librerie:\n\n`libxrender1`\n`libsm6`\n`libxext6`\n\n3. Riavvia l'app da Streamlit Cloud.")
+                        st.info("Su Streamlit Cloud mancano alcune librerie di sistema necessarie a RDKit.")
                 else:
                     st.info("Nessuna struttura SMILES disponibile per questo composto.")
             else:
