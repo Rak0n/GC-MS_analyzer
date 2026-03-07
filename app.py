@@ -173,6 +173,10 @@ if 'enriched_data' not in st.session_state:
 
 # --- UI: SIDEBAR ISTRUZIONI ---
 with st.sidebar:
+    # Mostra il logo nella sidebar se presente
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
+        
     st.title("📖 Guida all'Uso")
     try:
         with open("manuale_istruzioni.md", "r", encoding="utf-8") as f:
@@ -181,7 +185,14 @@ with st.sidebar:
         st.info("Benvenuto! Il manuale d'istruzioni dettagliato non è stato ancora caricato su GitHub come 'manuale_istruzioni.md'.")
 
 # --- UI: TITOLO E TABS ---
-st.title("🧪 GC-MS Data Processing & Cheminformatics Dashboard")
+# Layout con colonne per allineare il logo di fianco al titolo principale
+col_logo, col_title = st.columns([1, 6])
+with col_logo:
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
+with col_title:
+    st.title("GC-MS Data Processing & Cheminformatics Dashboard")
+
 st.markdown("Un'unica piattaforma per pulire, arricchire e visualizzare i tuoi dati GC-MS.")
 
 tab1, tab2, tab3 = st.tabs(["1️⃣ Data Processing (CSV -> Excel)", "2️⃣ Enrichment (PubChem)", "3️⃣ Interactive Dashboard"])
