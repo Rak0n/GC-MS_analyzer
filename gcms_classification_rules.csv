@@ -1,0 +1,39 @@
+Keyword,Family,SubFamily,Source,Notes
+butanediol,Polymers_PBAT,Monomer,Mater-Bi,Marker idrolisi PBAT (Aqueous Phase)
+adipic,Polymers_PBAT,Monomer,Mater-Bi,Marker idrolisi PBAT
+hexanedioic,Polymers_PBAT,Monomer,Mater-Bi,Nome IUPAC Acido Adipico
+terephthal,Polymers_PBAT,Aromatic_Fragment,Mater-Bi,Marker nucleo aromatico PBAT
+benzenedicarboxylic,Polymers_PBAT,Aromatic_Fragment,Mater-Bi,Nome IUPAC Acidi Ftalici/Tereftalici
+isosorbide,Biomass_Starch_TPS,Sugar_Derivative,Mater-Bi,Disidratazione sorbitolo/zuccheri
+cyclopentanone,Biomass_Starch_TPS,Cyclic_Oxygenated,Mater-Bi/Organics,Marker degradazione carboidrati
+cyclopenten,Biomass_Starch_TPS,Cyclic_Oxygenated,Mater-Bi/Organics,Marker degradazione carboidrati
+levulinic,Biomass_Starch_TPS,Organic_Acid,Mater-Bi,Platform chemical da amido (catalisi acida)
+oxo-pentanoic,Biomass_Starch_TPS,Organic_Acid,Mater-Bi,Nome IUPAC Acido Levulinico
+furan,Biomass_Starch_TPS,Furanic,Mater-Bi/Organics,Degradazione zuccheri
+mannose,Biomass_Starch_TPS,Sugar,Organics/Starch,Zucchero residuo
+acetoin,Biomass_Starch_TPS,Oxygenated_Light,Mater-Bi,Sottoprodotto degradazione amido
+acetic acid,Biomass_Starch_TPS,VFA,All,Acido volatile da zuccheri o proteine
+oleic,Biomass_Lipids,Fatty_Acid,Sopravaglio/Sludge,Acido grasso insaturo (C18:1)
+palmitic,Biomass_Lipids,Fatty_Acid,Sopravaglio/Sludge,Acido grasso saturo (C16)
+hexadecanoic,Biomass_Lipids,Fatty_Acid,Sopravaglio/Sludge,Nome IUPAC Acido Palmitico
+stearic,Biomass_Lipids,Fatty_Acid,Sopravaglio/Sludge,Acido grasso saturo (C18)
+octadecanoic,Biomass_Lipids,Fatty_Acid,Sopravaglio/Sludge,Nome IUPAC Acido Stearico
+hexadecanol,Biomass_Lipids,Fatty_Alcohol,Sopravaglio,Alcol grasso
+octadecenal,Biomass_Lipids,Fatty_Aldehyde,Sopravaglio,Aldeide grassa
+pyrrolidinone,Biomass_Proteins_N,Lactam,Sludge/Organics, Marker degradazione amminoacidi (Prolina)
+indole,Biomass_Proteins_N,Heterocyclic_N,Sludge/Organics,Marker degradazione Triptofano
+pyrazine,Biomass_Proteins_N,Heterocyclic_N,Sludge/Organics,Reazioni di Maillard / Degradazione proteine
+ammonium,Biomass_Proteins_N,Inorganic_N,Sludge/Organics,Marker deaminazione proteine
+amide,Biomass_Proteins_N,Amide,Sludge/Organics,Lipidi azotati o derivati proteici
+glycyl,Biomass_Proteins_N,Peptide_Frag,Sludge/Organics,Frammento peptidico
+decane,Polymers_PE,Alkane,PE_Pyrolysis,Marker idrocarburico PE
+undecane,Polymers_PE,Alkane,PE_Pyrolysis,Marker idrocarburico PE
+dodecane,Polymers_PE,Alkane,PE_Pyrolysis,Marker idrocarburico PE
+decene,Polymers_PE,Alkene,PE_Pyrolysis,Marker idrocarburico PE
+decadiene,Polymers_PE,Alkadene,PE_Pyrolysis,Marker idrocarburico PE (Pirolisi)
+octaethylene,System_Contaminants,Column_Bleed,Column_WAX,Sanguinamento colonna ZB-WAX (m/z 45)
+glycol,System_Contaminants,Column_Bleed/Additive,Column/Plastic,PEG o derivati
+ether,System_Contaminants,Additive,Plastic/System,Tensioattivi o plastificanti
+siloxane,System_Contaminants,Bleed_Septum,GC_Septum,Sanguinamento setti o colonna apolare
+borane,System_Contaminants,Additive,Unknown,Additivo chimico o artefatto
+phenol,Other,Phenolic,Lignin/Sludge,Marker degradazione lignina o antiossidanti
