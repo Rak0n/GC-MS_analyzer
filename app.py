@@ -92,15 +92,32 @@ def esegui_arricchimento(dict_dfs, rules_df):
     totale_righe_complessivo = sum(len(df) for df in dict_dfs.values())
     righe_processate = 0
 
-    for sheet_name, df in dict_dfs.items():
+    for sheet_name, original_df in dict_dfs.items():
+        # FIX 1: Copia profonda per evitare conflitti di memoria in Streamlit durante il bypass
+        df = original_df.copy()
+        
         status_text.text(f"Elaborazione foglio: {sheet_name}...")
         
         if 'Compound Name' not in df.columns:
             st.warning(f"Nessuna colonna 'Compound Name' in {sheet_name}. Foglio saltato.")
             continue
         
+        # FIX 2: Gestione intelligente delle formule Excel non calcolate
         if 'New Area %' in df.columns:
-            df['New Area %'] = pd.to_numeric(df['New Area %'], errors='coerce').fillna(0)
+            df['New Area %'] = pd.to_numeric(df['New Area %'], errors='coerce')
+            
+            # Se troviamo NaN o zero totale (perché l'utente ha caricato l'Excel senza aprirlo/salvarlo)
+            if df['New Area %'].isna().all() or df['New Area %'].sum() == 0:
+                if 'Component Area' in df.columns and 'Match Factor' in df.columns:
+                    st.info(f"💡 Ricalcolo automatico aree per '{sheet_name}' (le formule Excel non erano pre-calcolate).")
+                    soglia = st.session_state.get('last_soglia', 60)
+                    df['Match Factor'] = pd.to_numeric(df['Match Factor'], errors='coerce').fillna(0)
+                    df['Component Area'] = pd.to_numeric(df['Component Area'], errors='coerce').fillna(0)
+                    new_area = df.apply(lambda x: x['Component Area'] if x['Match Factor'] >= soglia else 0, axis=1)
+                    tot = new_area.sum()
+                    df['New Area %'] = new_area.apply(lambda x: (x/tot*100) if tot > 0 else 0)
+
+            # Ora siamo sicuri che i numeri ci siano, applichiamo il filtro
             df = df[df['New Area %'] > 0].reset_index(drop=True)
         
         formule, c_list, o_list, n_list, oc_list = [], [], [], [], []
@@ -190,6 +207,7 @@ with tab1:
             usa_demo = False
 
     soglia_match = st.slider("Soglia Match Factor (i composti sotto questo valore verranno azzerati):", 0, 100, 60)
+    st.session_state.last_soglia = soglia_match # Memorizziamo la soglia scelta per la Fase 2
 
     if (uploaded_csvs or usa_demo) and st.button("Genera Excel Elaborato"):
         output_buffer = io.BytesIO()
@@ -219,8 +237,11 @@ with tab1:
                     
                 df = df.sort_values(by='Component Area', ascending=False).reset_index(drop=True)
                 
-                # Calcolo per st.session_state (Python puro per la Fase 2 automatica)
+                # FIX 3: Calcolo per st.session_state reso numericamente sicuro a prova di errore
                 df_for_state = df.copy()
+                df_for_state['Match Factor'] = pd.to_numeric(df_for_state['Match Factor'], errors='coerce').fillna(0)
+                df_for_state['Component Area'] = pd.to_numeric(df_for_state['Component Area'], errors='coerce').fillna(0)
+                
                 df_for_state['New Component Area'] = df_for_state.apply(lambda x: x['Component Area'] if x['Match Factor'] >= soglia_match else 0, axis=1)
                 tot_area = df_for_state['New Component Area'].sum()
                 df_for_state['New Area %'] = df_for_state['New Component Area'].apply(lambda x: (x / tot_area * 100) if tot_area > 0 else 0)
@@ -399,3 +420,9 @@ with tab3:
                     st.info("Nessuna struttura SMILES disponibile per questo composto.")
             else:
                 st.info("👈 Clicca su una riga della tabella per visualizzare la struttura chimica.")
+
+
+
+
+
+
