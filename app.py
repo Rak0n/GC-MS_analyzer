@@ -82,9 +82,88 @@ def classifica_famiglia(nome, rules_df):
     else:
         return "Altro ⚪"
 
+def esegui_arricchimento(dict_dfs, rules_df):
+    """Esegue l'arricchimento PubChem su un dizionario di DataFrame."""
+    dati_elaborati = {}
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    # Calcola il totale delle righe per la progress bar
+    totale_righe_complessivo = sum(len(df) for df in dict_dfs.values())
+    righe_processate = 0
+
+    for sheet_name, df in dict_dfs.items():
+        status_text.text(f"Elaborazione foglio: {sheet_name}...")
+        
+        if 'Compound Name' not in df.columns:
+            st.warning(f"Nessuna colonna 'Compound Name' in {sheet_name}. Foglio saltato.")
+            continue
+        
+        if 'New Area %' in df.columns:
+            df['New Area %'] = pd.to_numeric(df['New Area %'], errors='coerce').fillna(0)
+            df = df[df['New Area %'] > 0].reset_index(drop=True)
+        
+        formule, c_list, o_list, n_list, oc_list = [], [], [], [], []
+        smiles_list, pesi_list, famiglie_list = [], [], []
+        
+        for index, row in df.iterrows():
+            nome_composto = str(row['Compound Name']).strip()
+            
+            if pd.isna(nome_composto) or nome_composto.lower() in ['nan', 'none', '']:
+                formula, smiles, peso = "N/A", None, None
+            else:
+                formula, smiles, peso = get_pubchem_data(nome_composto)
+                time.sleep(0.1)
+            
+            formule.append(formula)
+            smiles_list.append(smiles)
+            pesi_list.append(peso)
+            
+            famiglie_list.append(classifica_famiglia(nome_composto, rules_df))
+            
+            c = estrai_atomi(formula, 'C')
+            o = estrai_atomi(formula, 'O')
+            n = estrai_atomi(formula, 'N')
+            
+            c_list.append(c); o_list.append(o); n_list.append(n)
+            oc_list.append(round(o/c, 3) if c > 0 else None)
+            
+            righe_processate += 1
+            if totale_righe_complessivo > 0:
+                progress_bar.progress(int((righe_processate / totale_righe_complessivo) * 100))
+
+        df['Formula Bruta'] = formule
+        df['SMILES'] = smiles_list
+        df['Peso Molecolare'] = pesi_list
+        df['Famiglia Assegnata'] = famiglie_list
+        df['Atomi_C'] = c_list
+        df['Atomi_O'] = o_list
+        df['Atomi_N'] = n_list
+        df['Rapporto O/C'] = oc_list
+        
+        if 'Component Area' in df.columns:
+            df = df.drop(columns=['Component Area'])
+        
+        dati_elaborati[sheet_name] = df
+    
+    st.session_state.enriched_data = dati_elaborati
+    status_text.text("Elaborazione completata! Puoi scaricare i risultati qui sotto o passare alla Tab 3.")
+    st.success("Dati arricchiti con successo!")
+
 # --- INIZIALIZZAZIONE SESSION STATE ---
 if 'enriched_data' not in st.session_state:
     st.session_state.enriched_data = None
+if 'processed_data' not in st.session_state:
+    st.session_state.processed_data = None
+
+# --- UI: SIDEBAR ISTRUZIONI ---
+with st.sidebar:
+    st.title("📖 Guida all'Uso")
+    try:
+        with open("manuale_istruzioni.md", "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+    except FileNotFoundError:
+        st.info("Benvenuto! Il manuale d'istruzioni dettagliato non è stato ancora caricato su GitHub come 'manuale_istruzioni.md'.")
 
 # --- UI: TITOLO E TABS ---
 st.title("🧪 GC-MS Data Processing & Cheminformatics Dashboard")
@@ -110,8 +189,11 @@ with tab1:
             st.error("⚠️ File 'sample_data.csv' non trovato. Assicurati di averlo caricato su GitHub.")
             usa_demo = False
 
+    soglia_match = st.slider("Soglia Match Factor (i composti sotto questo valore verranno azzerati):", 0, 100, 60)
+
     if (uploaded_csvs or usa_demo) and st.button("Genera Excel Elaborato"):
         output_buffer = io.BytesIO()
+        processed_dfs_for_state = {}
         
         with pd.ExcelWriter(output_buffer, engine='xlsxwriter') as writer:
             workbook = writer.book
@@ -137,12 +219,19 @@ with tab1:
                     
                 df = df.sort_values(by='Component Area', ascending=False).reset_index(drop=True)
                 
+                # Calcolo per st.session_state (Python puro per la Fase 2 automatica)
+                df_for_state = df.copy()
+                df_for_state['New Component Area'] = df_for_state.apply(lambda x: x['Component Area'] if x['Match Factor'] >= soglia_match else 0, axis=1)
+                tot_area = df_for_state['New Component Area'].sum()
+                df_for_state['New Area %'] = df_for_state['New Component Area'].apply(lambda x: (x / tot_area * 100) if tot_area > 0 else 0)
+                processed_dfs_for_state[sheet_name] = df_for_state
+
                 start_row, num_rows = 5, len(df)
                 last_row = start_row + num_rows
                 worksheet = workbook.add_worksheet(sheet_name)
                 
                 worksheet.write('B2', 'Soglia Match Factor:', bold_fmt)
-                worksheet.write('C2', 60, input_fmt)
+                worksheet.write('C2', soglia_match, input_fmt)
                 worksheet.write('E2', 'Area Totale Originale:', bold_fmt)
                 worksheet.write_formula('F2', f'=SUM(D6:D{last_row})', sci_fmt) 
                 worksheet.write('E3', 'Nuova Area Totale:', bold_fmt)
@@ -168,6 +257,8 @@ with tab1:
                 worksheet.conditional_format(f'A6:G{last_row}', {'type': 'formula', 'criteria': '=$C6<$C$2', 'format': gray_strikethrough_fmt})
                 worksheet.freeze_panes(5, 0)
         
+        st.session_state.processed_data = processed_dfs_for_state
+        
         st.success("File Excel generato con successo!")
         st.download_button(
             label="⬇️ Scarica Risultati_GCMS_Elaborati.xlsx",
@@ -185,6 +276,13 @@ with tab2:
     
     uploaded_excel = st.file_uploader("Carica file Excel (.xlsx)", type="xlsx")
     
+    # Tasto rapido per i "Pigri"
+    if st.session_state.processed_data is not None:
+        st.markdown("---")
+        st.success("✨ **Scorciatoia disponibile!** Hai già elaborato dei dati in Fase 1.")
+        if st.button("🚀 Bypassa il caricamento e vai diretto all'Arricchimento"):
+            esegui_arricchimento(st.session_state.processed_data, rules_df)
+
     # 2. MENU A TENDINA PER LE REGOLE
     with st.expander("⚙️ Opzioni di Classificazione Famiglie"):
         st.write("Di default l'app usa il file `gcms_classification_rules.csv` caricato su GitHub.")
@@ -198,80 +296,20 @@ with tab2:
         st.warning("⚠️ Nessun file di regole trovato. Verrà usata la classificazione di base.")
 
     if uploaded_excel:
-        if st.button("🚀 Avvia Arricchimento PubChem"):
+        if st.button("🚀 Avvia Arricchimento PubChem dal File"):
             xls = pd.ExcelFile(uploaded_excel)
-            dati_elaborati = {}
-            
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            for sheet_idx, sheet_name in enumerate(xls.sheet_names):
-                status_text.text(f"Elaborazione foglio: {sheet_name}...")
-                
+            dict_dfs = {}
+            for sheet_name in xls.sheet_names:
                 df_raw = pd.read_excel(xls, sheet_name=sheet_name, header=None)
                 header_idx = 0
                 for idx, row in df_raw.iterrows():
                     if 'Compound Name' in row.values:
                         header_idx = idx
                         break
-                
                 df = pd.read_excel(xls, sheet_name=sheet_name, header=header_idx)
-                
-                if 'Compound Name' not in df.columns:
-                    st.warning(f"Nessuna colonna 'Compound Name' in {sheet_name}. Foglio saltato.")
-                    continue
-                
-                if 'New Area %' in df.columns:
-                    df['New Area %'] = pd.to_numeric(df['New Area %'], errors='coerce').fillna(0)
-                    df = df[df['New Area %'] > 0].reset_index(drop=True)
-                
-                formule, c_list, o_list, n_list, oc_list = [], [], [], [], []
-                smiles_list, pesi_list, famiglie_list = [], [], []
-                
-                total_rows = len(df)
-                for index, row in df.iterrows():
-                    nome_composto = str(row['Compound Name']).strip()
-                    
-                    if pd.isna(nome_composto) or nome_composto.lower() in ['nan', 'none', '']:
-                        formula, smiles, peso = "N/A", None, None
-                    else:
-                        formula, smiles, peso = get_pubchem_data(nome_composto)
-                        time.sleep(0.1)
-                    
-                    formule.append(formula)
-                    smiles_list.append(smiles)
-                    pesi_list.append(peso)
-                    
-                    # Applica le regole caricate per assegnare la famiglia
-                    famiglie_list.append(classifica_famiglia(nome_composto, rules_df))
-                    
-                    c = estrai_atomi(formula, 'C')
-                    o = estrai_atomi(formula, 'O')
-                    n = estrai_atomi(formula, 'N')
-                    
-                    c_list.append(c); o_list.append(o); n_list.append(n)
-                    oc_list.append(round(o/c, 3) if c > 0 else None)
-                    
-                    progress_pct = int(((index + 1) / total_rows) * 100)
-                    progress_bar.progress(progress_pct)
-
-                df['Formula Bruta'] = formule
-                df['SMILES'] = smiles_list
-                df['Peso Molecolare'] = pesi_list
-                df['Famiglia Assegnata'] = famiglie_list
-                df['Atomi_C'] = c_list
-                df['Atomi_O'] = o_list
-                df['Atomi_N'] = n_list
-                df['Rapporto O/C'] = oc_list
-                
-                if 'Component Area' in df.columns:
-                    df = df.drop(columns=['Component Area'])
-                
-                dati_elaborati[sheet_name] = df
+                dict_dfs[sheet_name] = df
             
-            st.session_state.enriched_data = dati_elaborati
-            status_text.text("Elaborazione completata! Puoi scaricare i risultati qui sotto o passare alla Tab 3.")
-            st.success("Dati arricchiti con successo!")
+            esegui_arricchimento(dict_dfs, rules_df)
 
     if st.session_state.enriched_data is not None:
         output_buffer_enriched = io.BytesIO()
