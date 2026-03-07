@@ -93,7 +93,7 @@ def esegui_arricchimento(dict_dfs, rules_df):
     righe_processate = 0
 
     for sheet_name, original_df in dict_dfs.items():
-        # FIX 1: Copia profonda per evitare conflitti di memoria in Streamlit durante il bypass
+        # Copia profonda per evitare conflitti di memoria
         df = original_df.copy()
         
         status_text.text(f"Elaborazione foglio: {sheet_name}...")
@@ -102,11 +102,11 @@ def esegui_arricchimento(dict_dfs, rules_df):
             st.warning(f"Nessuna colonna 'Compound Name' in {sheet_name}. Foglio saltato.")
             continue
         
-        # FIX 2: Gestione intelligente delle formule Excel non calcolate
+        # Gestione intelligente delle formule Excel non calcolate
         if 'New Area %' in df.columns:
             df['New Area %'] = pd.to_numeric(df['New Area %'], errors='coerce')
             
-            # Se troviamo NaN o zero totale (perché l'utente ha caricato l'Excel senza aprirlo/salvarlo)
+            # Se l'utente ha caricato l'Excel senza aprirlo/salvarlo, i valori potrebbero essere nulli
             if df['New Area %'].isna().all() or df['New Area %'].sum() == 0:
                 if 'Component Area' in df.columns and 'Match Factor' in df.columns:
                     st.info(f"💡 Ricalcolo automatico aree per '{sheet_name}' (le formule Excel non erano pre-calcolate).")
@@ -117,7 +117,7 @@ def esegui_arricchimento(dict_dfs, rules_df):
                     tot = new_area.sum()
                     df['New Area %'] = new_area.apply(lambda x: (x/tot*100) if tot > 0 else 0)
 
-            # Ora siamo sicuri che i numeri ci siano, applichiamo il filtro
+            # Filtriamo le righe con area > 0
             df = df[df['New Area %'] > 0].reset_index(drop=True)
         
         formule, c_list, o_list, n_list, oc_list = [], [], [], [], []
@@ -170,8 +170,6 @@ def esegui_arricchimento(dict_dfs, rules_df):
 # --- INIZIALIZZAZIONE SESSION STATE ---
 if 'enriched_data' not in st.session_state:
     st.session_state.enriched_data = None
-if 'processed_data' not in st.session_state:
-    st.session_state.processed_data = None
 
 # --- UI: SIDEBAR ISTRUZIONI ---
 with st.sidebar:
@@ -211,7 +209,6 @@ with tab1:
 
     if (uploaded_csvs or usa_demo) and st.button("Genera Excel Elaborato"):
         output_buffer = io.BytesIO()
-        processed_dfs_for_state = {}
         
         with pd.ExcelWriter(output_buffer, engine='xlsxwriter') as writer:
             workbook = writer.book
@@ -237,16 +234,6 @@ with tab1:
                     
                 df = df.sort_values(by='Component Area', ascending=False).reset_index(drop=True)
                 
-                # FIX 3: Calcolo per st.session_state reso numericamente sicuro a prova di errore
-                df_for_state = df.copy()
-                df_for_state['Match Factor'] = pd.to_numeric(df_for_state['Match Factor'], errors='coerce').fillna(0)
-                df_for_state['Component Area'] = pd.to_numeric(df_for_state['Component Area'], errors='coerce').fillna(0)
-                
-                df_for_state['New Component Area'] = df_for_state.apply(lambda x: x['Component Area'] if x['Match Factor'] >= soglia_match else 0, axis=1)
-                tot_area = df_for_state['New Component Area'].sum()
-                df_for_state['New Area %'] = df_for_state['New Component Area'].apply(lambda x: (x / tot_area * 100) if tot_area > 0 else 0)
-                processed_dfs_for_state[sheet_name] = df_for_state
-
                 start_row, num_rows = 5, len(df)
                 last_row = start_row + num_rows
                 worksheet = workbook.add_worksheet(sheet_name)
@@ -278,8 +265,6 @@ with tab1:
                 worksheet.conditional_format(f'A6:G{last_row}', {'type': 'formula', 'criteria': '=$C6<$C$2', 'format': gray_strikethrough_fmt})
                 worksheet.freeze_panes(5, 0)
         
-        st.session_state.processed_data = processed_dfs_for_state
-        
         st.success("File Excel generato con successo!")
         st.download_button(
             label="⬇️ Scarica Risultati_GCMS_Elaborati.xlsx",
@@ -297,13 +282,6 @@ with tab2:
     
     uploaded_excel = st.file_uploader("Carica file Excel (.xlsx)", type="xlsx")
     
-    # Tasto rapido per i "Pigri"
-    if st.session_state.processed_data is not None:
-        st.markdown("---")
-        st.success("✨ **Scorciatoia disponibile!** Hai già elaborato dei dati in Fase 1.")
-        if st.button("🚀 Bypassa il caricamento e vai diretto all'Arricchimento"):
-            esegui_arricchimento(st.session_state.processed_data, rules_df)
-
     # 2. MENU A TENDINA PER LE REGOLE
     with st.expander("⚙️ Opzioni di Classificazione Famiglie"):
         st.write("Di default l'app usa il file `gcms_classification_rules.csv` caricato su GitHub.")
@@ -420,7 +398,6 @@ with tab3:
                     st.info("Nessuna struttura SMILES disponibile per questo composto.")
             else:
                 st.info("👈 Clicca su una riga della tabella per visualizzare la struttura chimica.")
-
 
 
 
