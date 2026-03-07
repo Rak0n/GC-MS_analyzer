@@ -4,3 +4,4 @@ xlsxwriter
 openpyxl
 pubchempy
 rdkit
+plotly
