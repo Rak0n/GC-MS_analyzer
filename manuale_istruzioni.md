@@ -21,9 +21,9 @@ In questa fase devi caricare i file `.csv` grezzi esportati dal tuo strumento GC
 
 Qui l'app interroga il database mondiale **PubChem** per trovare formule e strutture chimiche (SMILES).
 
-- **Flusso Standard:** Carica l'Excel che hai scaricato (e validato manualmente) nella Fase 1.
+- **Flusso Standard:** Carica l'Excel che hai scaricato (e validato manualmente) nella Fase 1. Avvia Arricchimento PubChem.
     
-- **Scorciatoia (Per i più veloci):** Se ti fidi ciecamente dei nomi assegnati dallo strumento GC-MS e non hai fatto modifiche manuali, clicca il tasto **"Bypassa il caricamento"** per mandare i dati di Fase 1 diretti all'elaborazione!
+- **Classificazione Famiglie:** puoi caricare le tue regole in base al campione analizzato o lasciare quelle di default. In fondo trovi la guida per la creazione di nuove regole.
     
 
 ### 3️⃣ Fase 3: Dashboard Interattiva
